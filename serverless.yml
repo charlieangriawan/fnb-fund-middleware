@@ -1,0 +1,73 @@
+org: staffinc
+app: fnb-fund
+service: ${self:custom.serviceName}
+useDotenv: true
+
+provider:
+  name: aws
+  runtime: nodejs22.x
+  region: 'ap-southeast-1'
+  stage: ${opt:stage, 'development'}
+  memorySize: 128
+  timeout: 28
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - lambda:*
+            - dynamodb:*
+          Resource: '*'
+  httpApi:
+    cors:
+      allowedOrigins: '*'
+      allowedHeaders:
+        - Content-Type
+        - Authorization
+      allowedMethods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - OPTIONS
+      allowCredentials: true
+  environment:
+    ENV: ${env:ENV}
+    SERVICE_NAME: ${env:SERVICE_NAME}
+    ENDPOINT_URL: ${env:ENDPOINT_URL}
+    WISE_API_KEY: ${env:WISE_API_KEY}
+    WISE_PROFILE_ID: ${env:WISE_PROFILE_ID}
+    WISE_BALANCE_ID: ${env:WISE_BALANCE_ID}
+functions:
+  healthCheck:
+    handler: src/handlers/health.healthHandler
+    events:
+      - http:
+          path: health
+          method: get
+
+  wiseBalance:
+    handler: src/handlers/wise.wiseBalanceHandler
+    events:
+      - http:
+          path: wise/balance
+          method: get
+
+  wiseWebhook:
+    handler: src/handlers/wise.wiseWebhookHandler
+    events:
+      - http:
+          path: wise/webhook
+          method: post
+
+plugins:
+  - serverless-offline
+  - serverless-domain-manager
+
+custom:
+  serviceName: ${env:SERVICE_NAME}
+  customDomain:
+    domainName: ${env:ENDPOINT_URL}
+    basePath: ''
+    stage: ${self:provider.stage}
+    createRoute53Record: true

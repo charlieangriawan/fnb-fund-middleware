@@ -1,0 +1,22 @@
+{
+  "name": "fnb-fund",
+  "version": "1.0.0",
+  "description": "A Serverless application using Node.js",
+  "main": "src/handlers/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "sls offline --stage development --httpPort 3000"
+  },
+  "imports": {
+    "#src/*": "./src/*"
+  },
+  "dependencies": {
+    "serverless": "^4.0.0"
+  },
+  "devDependencies": {
+    "serverless-domain-manager": "^8.0.0",
+    "serverless-offline": "^14.4.0"
+  },
+  "author": "charlieangriawan",
+  "license": "MIT"
+}
