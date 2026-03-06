@@ -1,6 +1,8 @@
 import { saveTransactions } from '#src/utils/wise.js';
 
 export const wiseWebhookHandler = async (event) => {
+    wiseStatementRefreshHandler();
+
     console.info(event.body);
 
     return {
