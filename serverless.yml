@@ -60,6 +60,13 @@ functions:
           path: wise/webhook
           method: post
 
+  wiseStatementRefresh:
+    handler: src/handlers/wise.wiseStatementRefreshHandler
+    events:
+      - http:
+          path: wise/statement/refresh
+          method: post
+
 plugins:
   - serverless-offline
   - serverless-domain-manager

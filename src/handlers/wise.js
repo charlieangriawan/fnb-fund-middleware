@@ -9,6 +9,57 @@ export const wiseWebhookHandler = async (event) => {
     };
 };
 
+export const wiseStatementRefreshHandler = async () => {
+    const start = new Date('2025-01-01T00:00:00.000Z');
+    
+    const profileId = process.env.WISE_PROFILE_ID;
+    const balanceId = process.env.WISE_BALANCE_ID;
+    const apiKey = process.env.WISE_API_KEY;
+    
+    const now = new Date();
+    const current = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    
+    const results = [];
+    let cursor = new Date(start);
+    while (cursor <= current) {
+        const year = cursor.getUTCFullYear();
+        const month = cursor.getUTCMonth(); // 0-indexed
+
+        const intervalStart = new Date(Date.UTC(year, month, 1, 0, 0, 0, 0)).toISOString();
+        const lastDay = new Date(Date.UTC(year, month + 1, 0, 23, 59, 59, 999));
+        const intervalEnd = lastDay.toISOString();
+
+        const params = new URLSearchParams({
+            currency: 'SGD',
+            type: 'COMPACT',
+            statementLocale: 'en',
+            intervalStart,
+            intervalEnd,
+        });
+        const url = `https://api.transferwise.com/v1/profiles/${profileId}/balance-statements/${balanceId}/statement.json?${params}`;
+
+        console.info(`Fetching statement: ${intervalStart} -> ${intervalEnd}`);
+
+        const response = await fetch(url, {
+            headers: {
+                Authorization: `Bearer ${apiKey}`,
+            },
+        });
+
+        const data = await response.json();
+        results.push({ month: `${year}-${String(month + 1).padStart(2, '0')}`, status: response.status, data });
+
+        cursor = new Date(Date.UTC(year, month + 1, 1));
+    }
+
+    const transactions = results.flatMap((r) => r.data?.transactions ?? []);
+
+    return {
+        statusCode: 200,
+        body: JSON.stringify(transactions),
+    };
+};
+
 export const wiseBalanceHandler = async () => {
     const profileId = process.env.WISE_PROFILE_ID;
     const balanceId = process.env.WISE_BALANCE_ID;
