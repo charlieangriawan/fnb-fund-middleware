@@ -11,6 +11,8 @@
     "#src/*": "./src/*"
   },
   "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.1003.0",
+    "@aws-sdk/lib-dynamodb": "^3.1003.0",
     "serverless": "^4.0.0"
   },
   "devDependencies": {

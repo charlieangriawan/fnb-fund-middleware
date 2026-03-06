@@ -1,3 +1,5 @@
+import { saveTransactions } from '#src/utils/wise.js';
+
 export const wiseWebhookHandler = async (event) => {
     console.info(event.body);
 
@@ -53,6 +55,11 @@ export const wiseStatementRefreshHandler = async () => {
     }
 
     const transactions = results.flatMap((r) => r.data?.transactions ?? []);
+
+    if (transactions.length > 0) {
+        await saveTransactions(transactions);
+        console.info(`Saved ${transactions.length} transactions to DynamoDB`);
+    }
 
     return {
         statusCode: 200,

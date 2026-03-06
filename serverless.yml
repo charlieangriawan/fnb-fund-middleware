@@ -38,6 +38,7 @@ provider:
     WISE_API_KEY: ${env:WISE_API_KEY}
     WISE_PROFILE_ID: ${env:WISE_PROFILE_ID}
     WISE_BALANCE_ID: ${env:WISE_BALANCE_ID}
+    WISE_TRANSACTIONS_TABLE: ${env:WISE_TRANSACTIONS_TABLE}
 functions:
   healthCheck:
     handler: src/handlers/health.healthHandler
@@ -73,8 +74,46 @@ plugins:
 
 custom:
   serviceName: ${env:SERVICE_NAME}
+  wiseTransactionsTable: ${self:custom.serviceName}-wise-transactions
   customDomain:
     domainName: ${env:ENDPOINT_URL}
     basePath: ''
     stage: ${self:provider.stage}
     createRoute53Record: true
+
+resources:
+  Resources:
+    WiseTransactionsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${env:WISE_TRANSACTIONS_TABLE}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: referenceNumber
+            AttributeType: S
+          - AttributeName: type
+            AttributeType: S
+          - AttributeName: date
+            AttributeType: S
+          - AttributeName: person
+            AttributeType: S
+        KeySchema:
+          - AttributeName: referenceNumber
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: type-date-index
+            KeySchema:
+              - AttributeName: type
+                KeyType: HASH
+              - AttributeName: date
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+          - IndexName: person-date-index
+            KeySchema:
+              - AttributeName: person
+                KeyType: HASH
+              - AttributeName: date
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
