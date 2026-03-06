@@ -1,4 +1,6 @@
 import { saveTransactions, getLatestTransactionDate, getTransactions } from '#src/utils/wise.js';
+import deposits from '#src/injections/deposits.js';
+import payments from '#src/injections/payments.js';
 
 export const wiseWebhookHandler = async (event) => {
     wiseStatementRefreshHandler();
@@ -73,9 +75,12 @@ export const wiseStatementHandler = async (event) => {
     const { type, startDate, endDate } = event.queryStringParameters ?? {};
     const items = await getTransactions({ type, startDate, endDate });
 
+    const combined = [...items, ...deposits, ...payments];
+    combined.sort((a, b) => new Date(b.date) - new Date(a.date));
+
     return {
         statusCode: 200,
-        body: JSON.stringify(items),
+        body: JSON.stringify(combined),
     };
 };
 
