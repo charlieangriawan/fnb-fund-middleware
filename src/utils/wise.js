@@ -1,5 +1,5 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, BatchWriteCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, BatchWriteCommand, QueryCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
 
 const client = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(client);
@@ -48,6 +48,55 @@ export async function getLatestTransactionDate() {
     }
 
     return latestDate ? new Date(latestDate) : null;
+}
+
+export async function getTransactions({ type, startDate, endDate } = {}) {
+    const tableName = process.env.WISE_TRANSACTIONS_TABLE;
+    const types = type ? [type] : ['CREDIT', 'DEBIT', 'DEPOSIT', 'TRANSFER'];
+
+    const allItems = [];
+
+    for (const t of types) {
+        let keyCondition = '#type = :type';
+        const expressionNames = { '#type': 'type' };
+        const expressionValues = { ':type': t };
+
+        if (startDate && endDate) {
+            expressionNames['#date'] = 'date';
+            keyCondition += ' AND #date BETWEEN :start AND :end';
+            expressionValues[':start'] = startDate;
+            expressionValues[':end'] = endDate;
+        } else if (startDate) {
+            expressionNames['#date'] = 'date';
+            keyCondition += ' AND #date >= :start';
+            expressionValues[':start'] = startDate;
+        } else if (endDate) {
+            expressionNames['#date'] = 'date';
+            keyCondition += ' AND #date <= :end';
+            expressionValues[':end'] = endDate;
+        }
+
+        let lastKey;
+        do {
+            const response = await docClient.send(
+                new QueryCommand({
+                    TableName: tableName,
+                    IndexName: 'type-date-index',
+                    KeyConditionExpression: keyCondition,
+                    ExpressionAttributeNames: expressionNames,
+                    ExpressionAttributeValues: expressionValues,
+                    ScanIndexForward: false,
+                    ...(lastKey && { ExclusiveStartKey: lastKey }),
+                }),
+            );
+            allItems.push(...(response.Items ?? []));
+            lastKey = response.LastEvaluatedKey;
+        } while (lastKey);
+    }
+
+    allItems.sort((a, b) => (a.date < b.date ? 1 : -1));
+
+    return allItems;
 }
 
 export async function saveTransactions(transactions) {

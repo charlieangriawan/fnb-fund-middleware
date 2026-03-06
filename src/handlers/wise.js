@@ -1,4 +1,4 @@
-import { saveTransactions, getLatestTransactionDate } from '#src/utils/wise.js';
+import { saveTransactions, getLatestTransactionDate, getTransactions } from '#src/utils/wise.js';
 
 export const wiseWebhookHandler = async (event) => {
     wiseStatementRefreshHandler();
@@ -66,6 +66,16 @@ export const wiseStatementRefreshHandler = async () => {
     return {
         statusCode: 200,
         body: JSON.stringify(transactions),
+    };
+};
+
+export const wiseStatementHandler = async (event) => {
+    const { type, startDate, endDate } = event.queryStringParameters ?? {};
+    const items = await getTransactions({ type, startDate, endDate });
+
+    return {
+        statusCode: 200,
+        body: JSON.stringify(items),
     };
 };
 

@@ -61,6 +61,13 @@ functions:
           path: wise/webhook
           method: post
 
+  wiseStatement:
+    handler: src/handlers/wise.wiseStatementHandler
+    events:
+      - http:
+          path: wise/statement
+          method: get
+
   wiseStatementRefresh:
     handler: src/handlers/wise.wiseStatementRefreshHandler
     events:
