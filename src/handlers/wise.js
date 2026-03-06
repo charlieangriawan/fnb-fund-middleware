@@ -1,4 +1,4 @@
-import { saveTransactions } from '#src/utils/wise.js';
+import { saveTransactions, getLatestTransactionDate } from '#src/utils/wise.js';
 
 export const wiseWebhookHandler = async (event) => {
     wiseStatementRefreshHandler();
@@ -14,7 +14,10 @@ export const wiseWebhookHandler = async (event) => {
 };
 
 export const wiseStatementRefreshHandler = async () => {
-    const start = new Date('2025-01-01T00:00:00.000Z');
+    const latestDate = await getLatestTransactionDate();
+    const start = latestDate
+        ? new Date(Date.UTC(latestDate.getUTCFullYear(), latestDate.getUTCMonth() - 1, 1))
+        : new Date('2025-01-01T00:00:00.000Z');
     
     const profileId = process.env.WISE_PROFILE_ID;
     const balanceId = process.env.WISE_BALANCE_ID;
@@ -42,8 +45,6 @@ export const wiseStatementRefreshHandler = async () => {
         });
         const url = `https://api.transferwise.com/v1/profiles/${profileId}/balance-statements/${balanceId}/statement.json?${params}`;
 
-        console.info(`Fetching statement: ${intervalStart} -> ${intervalEnd}`);
-
         const response = await fetch(url, {
             headers: {
                 Authorization: `Bearer ${apiKey}`,
@@ -60,7 +61,6 @@ export const wiseStatementRefreshHandler = async () => {
 
     if (transactions.length > 0) {
         await saveTransactions(transactions);
-        console.info(`Saved ${transactions.length} transactions to DynamoDB`);
     }
 
     return {
