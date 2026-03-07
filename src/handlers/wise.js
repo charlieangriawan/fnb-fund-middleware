@@ -193,12 +193,37 @@ export const wiseBalanceHandler = async () => {
 
     const data = await response.json();
 
+    const participants = ['jacky', 'lina', 'charlie', 'hendro'];
+    const balances = Object.fromEntries(participants.map((p) => [p, 0]));
+
+    const transactions = await getTransactions();
+    for (const tx of transactions) {
+        const amount = Math.abs(tx.record?.amount?.value ?? 0);
+        if (tx.type === 'DEPOSIT' || tx.type === 'TRANSFER' || tx.type === 'CREDIT') {
+            for (const p of participants) {
+                if (tx[p]) balances[p] += amount * tx[p];
+            }
+        } else if (tx.type === 'DEBIT') {
+            const calc = calcSplit(tx);
+            if (calc) {
+                for (const p of participants) {
+                    balances[p] -= calc.split[p] ?? 0;
+                }
+            }
+        }
+    }
+
+    const roundedBalances = Object.fromEntries(
+        Object.entries(balances).map(([p, v]) => [p, Math.round(v * 100) / 100])
+    );
+
     return {
         statusCode: response.status,
         headers: corsHeaders,
         body: JSON.stringify({
             currency: data.amount.currency,
             amount: data.amount.value,
+            balances: roundedBalances,
         }),
     };
 };
