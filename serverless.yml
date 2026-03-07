@@ -94,6 +94,8 @@ custom:
     domainName: ${env:ENDPOINT_URL}
     basePath: ''
     stage: ${self:provider.stage}
+    endpointType: edge
+    certificateRegion: us-east-1
     createRoute53Record: true
 
 resources:

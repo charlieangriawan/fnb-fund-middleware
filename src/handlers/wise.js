@@ -2,6 +2,11 @@ import { saveTransactions, saveInjections, resolvePersonColumns, getLatestTransa
 import deposits from '#src/injections/deposits.js';
 import payments from '#src/injections/payments.js';
 
+const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+};
+
 export const wiseWebhookHandler = async (event) => {
     wiseStatementRefreshHandler();
 
@@ -9,6 +14,7 @@ export const wiseWebhookHandler = async (event) => {
 
     return {
         statusCode: 200,
+        headers: corsHeaders,
         body: JSON.stringify({
             success: true,
         }),
@@ -71,6 +77,7 @@ export const wiseStatementRefreshHandler = async () => {
 
     return {
         statusCode: 200,
+        headers: corsHeaders,
         body: JSON.stringify({ records: transactions.length }),
     };
 };
@@ -81,6 +88,7 @@ export const wiseStatementUpdateHandler = async (event) => {
     if (!referenceNumber) {
         return {
             statusCode: 400,
+            headers: corsHeaders,
             body: JSON.stringify({ error: 'referenceNumber is required' }),
         };
     }
@@ -89,6 +97,7 @@ export const wiseStatementUpdateHandler = async (event) => {
 
     return {
         statusCode: 200,
+        headers: corsHeaders,
         body: JSON.stringify({ success: true }),
     };
 };
@@ -99,6 +108,7 @@ export const wiseStatementHandler = async (event) => {
 
     return {
         statusCode: 200,
+        headers: corsHeaders,
         body: JSON.stringify(items),
     };
 };
@@ -121,6 +131,7 @@ export const wiseBalanceHandler = async () => {
 
     return {
         statusCode: response.status,
+        headers: corsHeaders,
         body: JSON.stringify(data),
     };
 };
