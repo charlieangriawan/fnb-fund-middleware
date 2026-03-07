@@ -1,5 +1,5 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, BatchWriteCommand, QueryCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, BatchWriteCommand, PutCommand, QueryCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
 
 const client = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(client);
@@ -104,11 +104,17 @@ export async function saveTransactions(transactions) {
 
     const items = transactions.map((t) => {
         const person = resolvePerson(t);
+        const type = resolveType(t);
+        const isDebit = type === 'DEBIT';
         const item = {
             referenceNumber: t.referenceNumber,
             date: t.date,
-            type: resolveType(t),
+            type,
             record: t,
+            jacky: isDebit ? 1 : 0,
+            lina: isDebit ? 1 : 0,
+            charlie: isDebit ? 1 : 0,
+            hendro: isDebit ? 1 : 0,
         };
         if (person !== null) item.person = person;
         return { PutRequest: { Item: item } };
@@ -124,4 +130,24 @@ export async function saveTransactions(transactions) {
             }),
         );
     }
+}
+
+export async function saveInjections(items) {
+    const tableName = process.env.WISE_TRANSACTIONS_TABLE;
+
+    await Promise.all(
+        items.map(async (item) => {
+            try {
+                await docClient.send(
+                    new PutCommand({
+                        TableName: tableName,
+                        Item: item,
+                        ConditionExpression: 'attribute_not_exists(referenceNumber)',
+                    }),
+                );
+            } catch (err) {
+                if (err.name !== 'ConditionalCheckFailedException') throw err;
+            }
+        }),
+    );
 }

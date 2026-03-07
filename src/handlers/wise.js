@@ -1,4 +1,4 @@
-import { saveTransactions, getLatestTransactionDate, getTransactions } from '#src/utils/wise.js';
+import { saveTransactions, saveInjections, getLatestTransactionDate, getTransactions } from '#src/utils/wise.js';
 import deposits from '#src/injections/deposits.js';
 import payments from '#src/injections/payments.js';
 
@@ -65,9 +65,13 @@ export const wiseStatementRefreshHandler = async () => {
         await saveTransactions(transactions);
     }
 
+    const depositItems = deposits.map((d) => ({ jacky: 0, lina: 0, charlie: 0, hendro: 0, ...d }));
+    const paymentItems = payments.map((p) => ({ jacky: 1, lina: 1, charlie: 1, hendro: 1, ...p }));
+    await saveInjections([...depositItems, ...paymentItems]);
+
     return {
         statusCode: 200,
-        body: JSON.stringify(transactions),
+        body: JSON.stringify({ new: transactions.length }),
     };
 };
 
@@ -75,12 +79,9 @@ export const wiseStatementHandler = async (event) => {
     const { type, startDate, endDate } = event.queryStringParameters ?? {};
     const items = await getTransactions({ type, startDate, endDate });
 
-    const combined = [...items, ...deposits, ...payments];
-    combined.sort((a, b) => new Date(b.date) - new Date(a.date));
-
     return {
         statusCode: 200,
-        body: JSON.stringify(combined),
+        body: JSON.stringify(items),
     };
 };
 
