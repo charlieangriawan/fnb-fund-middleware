@@ -1,4 +1,4 @@
-import { saveTransactions, saveInjections, resolvePersonColumns, getLatestTransactionDate, getTransactions } from '#src/utils/wise.js';
+import { saveTransactions, saveInjections, resolvePersonColumns, getLatestTransactionDate, getTransactions, updateStatement } from '#src/utils/wise.js';
 import deposits from '#src/injections/deposits.js';
 import payments from '#src/injections/payments.js';
 
@@ -72,6 +72,24 @@ export const wiseStatementRefreshHandler = async () => {
     return {
         statusCode: 200,
         body: JSON.stringify({ records: transactions.length }),
+    };
+};
+
+export const wiseStatementUpdateHandler = async (event) => {
+    const { referenceNumber, jacky, lina, charlie, hendro } = JSON.parse(event.body ?? '{}');
+
+    if (!referenceNumber) {
+        return {
+            statusCode: 400,
+            body: JSON.stringify({ error: 'referenceNumber is required' }),
+        };
+    }
+
+    await updateStatement({ referenceNumber, jacky, lina, charlie, hendro });
+
+    return {
+        statusCode: 200,
+        body: JSON.stringify({ success: true }),
     };
 };
 

@@ -1,5 +1,5 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, BatchWriteCommand, PutCommand, QueryCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, BatchWriteCommand, PutCommand, QueryCommand, ScanCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 
 const client = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(client);
@@ -138,6 +138,35 @@ export async function saveTransactions(transactions) {
             }),
         );
     }
+}
+
+export async function updateStatement({ referenceNumber, jacky, lina, charlie, hendro }) {
+    const tableName = process.env.WISE_TRANSACTIONS_TABLE;
+
+    const fields = { jacky, lina, charlie, hendro };
+    const setClauses = [];
+    const expressionNames = {};
+    const expressionValues = {};
+
+    for (const [key, value] of Object.entries(fields)) {
+        if (value !== undefined) {
+            setClauses.push(`#${key} = :${key}`);
+            expressionNames[`#${key}`] = key;
+            expressionValues[`:${key}`] = value;
+        }
+    }
+
+    if (setClauses.length === 0) return;
+
+    await docClient.send(
+        new UpdateCommand({
+            TableName: tableName,
+            Key: { referenceNumber },
+            UpdateExpression: `SET ${setClauses.join(', ')}`,
+            ExpressionAttributeNames: expressionNames,
+            ExpressionAttributeValues: expressionValues,
+        }),
+    );
 }
 
 export async function saveInjections(items) {

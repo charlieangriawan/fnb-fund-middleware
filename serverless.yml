@@ -28,6 +28,7 @@ provider:
         - GET
         - POST
         - PUT
+        - PATCH
         - DELETE
         - OPTIONS
       allowCredentials: true
@@ -67,6 +68,13 @@ functions:
       - http:
           path: wise/statement
           method: get
+
+  wiseStatementUpdate:
+    handler: src/handlers/wise.wiseStatementUpdateHandler
+    events:
+      - http:
+          path: wise/statement
+          method: patch
 
   wiseStatementRefresh:
     handler: src/handlers/wise.wiseStatementRefreshHandler
