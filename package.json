@@ -5,7 +5,7 @@
   "main": "src/handlers/index.js",
   "type": "module",
   "scripts": {
-    "dev": "sls offline --stage development --httpPort 3000"
+    "dev": "sls offline --stage development --httpPort 4000"
   },
   "imports": {
     "#src/*": "./src/*"
