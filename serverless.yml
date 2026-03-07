@@ -69,19 +69,26 @@ functions:
           path: wise/statement
           method: get
 
-  wiseStatementUpdate:
-    handler: src/handlers/wise.wiseStatementUpdateHandler
-    events:
-      - http:
-          path: wise/statement
-          method: patch
-
   wiseStatementRefresh:
     handler: src/handlers/wise.wiseStatementRefreshHandler
     events:
       - http:
           path: wise/statement/refresh
           method: post
+
+  wiseTransaction:
+    handler: src/handlers/wise.wiseTransactionHandler
+    events:
+      - http:
+          path: wise/transaction
+          method: get
+
+  wiseTransactionUpdate:
+    handler: src/handlers/wise.wiseTransactionUpdateHandler
+    events:
+      - http:
+          path: wise/transaction
+          method: patch
 
 plugins:
   - serverless-offline

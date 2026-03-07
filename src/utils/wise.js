@@ -1,5 +1,5 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, BatchWriteCommand, PutCommand, QueryCommand, ScanCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, BatchWriteCommand, GetCommand, PutCommand, QueryCommand, ScanCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 
 const client = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(client);
@@ -34,6 +34,17 @@ export function resolvePersonColumns(type, name) {
         };
     }
     return { jacky: 0, lina: 0, charlie: 0, hendro: 0 };
+}
+
+export async function getTransaction(referenceNumber) {
+    const tableName = process.env.WISE_TRANSACTIONS_TABLE;
+    const response = await docClient.send(
+        new GetCommand({
+            TableName: tableName,
+            Key: { referenceNumber },
+        }),
+    );
+    return response.Item ?? null;
 }
 
 export async function getLatestTransactionDate() {

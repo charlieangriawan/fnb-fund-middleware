@@ -1,4 +1,5 @@
-import { saveTransactions, saveInjections, resolvePersonColumns, getLatestTransactionDate, getTransactions, updateStatement } from '#src/utils/wise.js';
+import { saveTransactions, saveInjections, resolvePersonColumns, getLatestTransactionDate, getTransaction, getTransactions, updateStatement } from '#src/utils/wise.js';
+import { calcSplit } from '#src/utils/balance.js';
 import deposits from '#src/injections/deposits.js';
 import payments from '#src/injections/payments.js';
 
@@ -82,7 +83,48 @@ export const wiseStatementRefreshHandler = async () => {
     };
 };
 
-export const wiseStatementUpdateHandler = async (event) => {
+export const wiseTransactionHandler = async (event) => {
+    const { referenceNumber } = event.queryStringParameters ?? {};
+
+    if (!referenceNumber) {
+        return {
+            statusCode: 400,
+            headers: corsHeaders,
+            body: JSON.stringify({ error: 'referenceNumber is required' }),
+        };
+    }
+
+    const transaction = await getTransaction(referenceNumber);
+
+    if (!transaction) {
+        return {
+            statusCode: 404,
+            headers: corsHeaders,
+            body: JSON.stringify({ error: 'Transaction not found' }),
+        };
+    }
+
+    if (transaction.type !== 'DEBIT') {
+        return {
+            statusCode: 400,
+            headers: corsHeaders,
+            body: JSON.stringify({ error: 'Transaction is not a DEBIT' }),
+        };
+    }
+
+    const calc = calcSplit(transaction);
+
+    return {
+        statusCode: 200,
+        headers: corsHeaders,
+        body: JSON.stringify({
+            ...(calc !== null && calc),
+            transaction,
+        }),
+    };
+};
+
+export const wiseTransactionUpdateHandler = async (event) => {
     const { referenceNumber, jacky, lina, charlie, hendro } = JSON.parse(event.body ?? '{}');
 
     if (!referenceNumber) {
@@ -93,12 +135,34 @@ export const wiseStatementUpdateHandler = async (event) => {
         };
     }
 
+    const existing = await getTransaction(referenceNumber);
+
+    if (!existing) {
+        return {
+            statusCode: 404,
+            headers: corsHeaders,
+            body: JSON.stringify({ error: 'Transaction not found' }),
+        };
+    }
+
+    if (existing.type !== 'DEBIT') {
+        return {
+            statusCode: 400,
+            headers: corsHeaders,
+            body: JSON.stringify({ error: 'Transaction is not a DEBIT' }),
+        };
+    }
+
     await updateStatement({ referenceNumber, jacky, lina, charlie, hendro });
+
+    const transaction = await getTransaction(referenceNumber);
+
+    const calc = calcSplit(transaction);
 
     return {
         statusCode: 200,
         headers: corsHeaders,
-        body: JSON.stringify({ success: true }),
+        body: JSON.stringify({ success: true, ...(calc !== null && calc) }),
     };
 };
 
@@ -132,6 +196,9 @@ export const wiseBalanceHandler = async () => {
     return {
         statusCode: response.status,
         headers: corsHeaders,
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+            currency: data.amount.currency,
+            amount: data.amount.value,
+        }),
     };
 };
