@@ -102,8 +102,6 @@ resources:
             AttributeType: S
           - AttributeName: date
             AttributeType: S
-          - AttributeName: person
-            AttributeType: S
         KeySchema:
           - AttributeName: referenceNumber
             KeyType: HASH
@@ -111,14 +109,6 @@ resources:
           - IndexName: type-date-index
             KeySchema:
               - AttributeName: type
-                KeyType: HASH
-              - AttributeName: date
-                KeyType: RANGE
-            Projection:
-              ProjectionType: ALL
-          - IndexName: person-date-index
-            KeySchema:
-              - AttributeName: person
                 KeyType: HASH
               - AttributeName: date
                 KeyType: RANGE

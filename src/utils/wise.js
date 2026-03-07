@@ -22,6 +22,20 @@ function resolvePerson(transaction) {
     return null;
 }
 
+export function resolvePersonColumns(type, name) {
+    if (type === 'DEBIT') return { jacky: 1, lina: 1, charlie: 1, hendro: 1 };
+    if (type === 'DEPOSIT' || type === 'TRANSFER') {
+        const n = (name ?? '').toLowerCase();
+        return {
+            jacky: n.includes('jacky') ? 1 : 0,
+            lina: n.includes('lina') ? 1 : 0,
+            charlie: n.includes('charlie') ? 1 : 0,
+            hendro: n.includes('hendro') ? 1 : 0,
+        };
+    }
+    return { jacky: 0, lina: 0, charlie: 0, hendro: 0 };
+}
+
 export async function getLatestTransactionDate() {
     const tableName = process.env.WISE_TRANSACTIONS_TABLE;
     const types = ['CREDIT', 'DEBIT', 'DEPOSIT', 'TRANSFER'];
@@ -103,20 +117,14 @@ export async function saveTransactions(transactions) {
     const tableName = process.env.WISE_TRANSACTIONS_TABLE;
 
     const items = transactions.map((t) => {
-        const person = resolvePerson(t);
         const type = resolveType(t);
-        const isDebit = type === 'DEBIT';
         const item = {
             referenceNumber: t.referenceNumber,
             date: t.date,
             type,
             record: t,
-            jacky: isDebit ? 1 : 0,
-            lina: isDebit ? 1 : 0,
-            charlie: isDebit ? 1 : 0,
-            hendro: isDebit ? 1 : 0,
+            ...resolvePersonColumns(type, resolvePerson(t)),
         };
-        if (person !== null) item.person = person;
         return { PutRequest: { Item: item } };
     });
 
