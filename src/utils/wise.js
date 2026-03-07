@@ -9,13 +9,13 @@ const docClient = DynamoDBDocumentClient.from(client);
  * - DEPOSIT and TRANSFER (from details.type) are kept as-is
  * - Everything else falls back to the top-level CREDIT / DEBIT
  */
-function resolveType(transaction) {
+export function resolveType(transaction) {
     const detailsType = transaction.details?.type;
     if (detailsType === 'DEPOSIT' || detailsType === 'TRANSFER') return detailsType;
     return transaction.type; // CREDIT | DEBIT
 }
 
-function resolvePerson(transaction) {
+export function resolvePerson(transaction) {
     const detailsType = transaction.details?.type;
     if (detailsType === 'DEPOSIT') return transaction.details?.senderName ?? null;
     if (detailsType === 'TRANSFER') return transaction.details?.recipient?.name ?? null;
@@ -44,7 +44,8 @@ export async function getTransaction(referenceNumber) {
             Key: { referenceNumber },
         }),
     );
-    return response.Item ?? null;
+    if (!response.Item) return null;
+    return response.Item;
 }
 
 export async function getLatestTransactionDate() {
@@ -124,25 +125,15 @@ export async function getTransactions({ type, startDate, endDate } = {}) {
     return allItems;
 }
 
-export async function saveTransactions(transactions) {
+export async function saveTransactions(items) {
     const tableName = process.env.WISE_TRANSACTIONS_TABLE;
 
-    const items = transactions.map((t) => {
-        const type = resolveType(t);
-        const item = {
-            referenceNumber: t.referenceNumber,
-            date: t.date,
-            type,
-            record: t,
-            ...resolvePersonColumns(type, resolvePerson(t)),
-        };
-        return { PutRequest: { Item: item } };
-    });
+    const writeRequests = items.map((item) => ({ PutRequest: { Item: item } }));
 
     // DynamoDB BatchWrite supports max 25 items per call
     const BATCH_SIZE = 25;
-    for (let i = 0; i < items.length; i += BATCH_SIZE) {
-        const batch = items.slice(i, i + BATCH_SIZE);
+    for (let i = 0; i < writeRequests.length; i += BATCH_SIZE) {
+        const batch = writeRequests.slice(i, i + BATCH_SIZE);
         await docClient.send(
             new BatchWriteCommand({
                 RequestItems: { [tableName]: batch },
@@ -151,7 +142,7 @@ export async function saveTransactions(transactions) {
     }
 }
 
-export async function updateStatement({ referenceNumber, jacky, lina, charlie, hendro }) {
+export async function updateStatement({ referenceNumber, jacky, lina, charlie, hendro, participants, split }) {
     const tableName = process.env.WISE_TRANSACTIONS_TABLE;
 
     const fields = { jacky, lina, charlie, hendro };
@@ -165,6 +156,20 @@ export async function updateStatement({ referenceNumber, jacky, lina, charlie, h
             expressionNames[`#${key}`] = key;
             expressionValues[`:${key}`] = value;
         }
+    }
+
+    if (participants !== undefined) {
+        setClauses.push('#record.#participants = :participants');
+        expressionNames['#record'] = 'record';
+        expressionNames['#participants'] = 'participants';
+        expressionValues[':participants'] = participants;
+    }
+
+    if (split !== undefined) {
+        setClauses.push('#record.#split = :split');
+        expressionNames['#record'] = 'record';
+        expressionNames['#split'] = 'split';
+        expressionValues[':split'] = split;
     }
 
     if (setClauses.length === 0) return;

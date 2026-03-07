@@ -1,5 +1,4 @@
-import { saveTransactions, saveInjections, resolvePersonColumns, getLatestTransactionDate, getTransaction, getTransactions, updateStatement } from '#src/utils/wise.js';
-import { calcSplit } from '#src/utils/balance.js';
+import { saveTransactions, saveInjections, resolveType, resolvePerson, resolvePersonColumns, getLatestTransactionDate, getTransaction, getTransactions, updateStatement } from '#src/utils/wise.js';
 import deposits from '#src/injections/deposits.js';
 import payments from '#src/injections/payments.js';
 import { reply } from '#src/utils/response.js';
@@ -58,12 +57,58 @@ export const wiseStatementRefreshHandler = async () => {
 
     const transactions = results.flatMap((r) => r.data?.transactions ?? []);
 
-    if (transactions.length > 0) {
-        await saveTransactions(transactions);
+    const mappedTransactions = transactions.map((t) => {
+        const type = resolveType(t);
+        const person = resolvePerson(t);
+        const personCols = resolvePersonColumns(type, person);
+        const amount = Math.abs(t.amount.value);
+        const participants = Object.fromEntries(Object.entries(personCols).filter(([, v]) => v > 0));
+        const total = Object.values(participants).reduce((s, v) => s + v, 0);
+        const split = type === 'DEBIT' && total > 0
+            ? Object.fromEntries(Object.entries(participants).map(([k, v]) => [k, (amount / total) * v]))
+            : undefined;
+        return {
+            referenceNumber: t.referenceNumber,
+            date: t.date,
+            type,
+            record: {
+                date: t.date,
+                amount,
+                participants,
+                ...(split !== undefined && { split }),
+            },
+            ...personCols,
+        };
+    });
+
+    if (mappedTransactions.length > 0) {
+        await saveTransactions(mappedTransactions);
     }
 
-    const depositItems = deposits.map(({ person, ...d }) => ({ ...resolvePersonColumns('DEPOSIT', person), ...d }));
-    const paymentItems = payments.map((p) => ({ jacky: 1, lina: 1, charlie: 1, hendro: 1, ...p }));
+    const depositItems = deposits.map(({ person, record, ...d }) => {
+        const personCols = resolvePersonColumns('DEPOSIT', person);
+        const amount = Math.abs(record.amount.value);
+        const participants = Object.fromEntries(Object.entries(personCols).filter(([, v]) => v > 0));
+        return {
+            ...d,
+            record: { date: record.date, amount, participants },
+            ...personCols,
+        };
+    });
+    const paymentItems = payments.map(({ record, ...p }) => {
+        const merged = { jacky: 1, lina: 1, charlie: 1, hendro: 1, ...p };
+        const personCols = { jacky: merged.jacky, lina: merged.lina, charlie: merged.charlie, hendro: merged.hendro };
+        const amount = Math.abs(record.amount.value);
+        const participants = Object.fromEntries(Object.entries(personCols).filter(([, v]) => v > 0));
+        const total = Object.values(participants).reduce((s, v) => s + v, 0);
+        const split = total > 0
+            ? Object.fromEntries(Object.entries(participants).map(([k, v]) => [k, (amount / total) * v]))
+            : {};
+        return {
+            ...merged,
+            record: { date: record.date, amount, participants, split },
+        };
+    });
     await saveInjections([...depositItems, ...paymentItems]);
 
     return reply(200, { records: transactions.length });
@@ -86,9 +131,7 @@ export const wiseTransactionHandler = async (event) => {
         return reply(400, { error: 'Transaction is not a DEBIT' });
     }
 
-    const calc = calcSplit(transaction);
-
-    return reply(200, { ...(calc !== null && calc), transaction });
+    return reply(200, { transaction: transaction.record });
 };
 
 export const wiseTransactionUpdateHandler = async (event) => {
@@ -108,20 +151,31 @@ export const wiseTransactionUpdateHandler = async (event) => {
         return reply(400, { error: 'Transaction is not a DEBIT' });
     }
 
-    await updateStatement({ referenceNumber, jacky, lina, charlie, hendro });
+    const updatedCols = {
+        jacky: jacky ?? existing.jacky,
+        lina: lina ?? existing.lina,
+        charlie: charlie ?? existing.charlie,
+        hendro: hendro ?? existing.hendro,
+    };
+    const participants = Object.fromEntries(Object.entries(updatedCols).filter(([, v]) => v > 0));
+    const amount = Math.abs(existing.record.amount);
+    const total = Object.values(participants).reduce((s, v) => s + v, 0);
+    const split = total > 0
+        ? Object.fromEntries(Object.entries(participants).map(([k, v]) => [k, (amount / total) * v]))
+        : {};
+
+    await updateStatement({ referenceNumber, jacky, lina, charlie, hendro, participants, split });
 
     const transaction = await getTransaction(referenceNumber);
 
-    const calc = calcSplit(transaction);
-
-    return reply(200, { success: true, ...(calc !== null && calc) });
+    return reply(200, { success: true, transaction: transaction.record });
 };
 
 export const wiseStatementHandler = async (event) => {
-    const { type, startDate, endDate } = event.queryStringParameters ?? {};
+    const { type, startDate = '2026-01-31T16:00:00.000000Z', endDate } = event.queryStringParameters ?? {};
     const items = await getTransactions({ type, startDate, endDate });
 
-    return reply(200, items);
+    return reply(200, items.map((item) => item.record));
 };
 
 export const wiseBalanceHandler = async () => {
@@ -145,16 +199,16 @@ export const wiseBalanceHandler = async () => {
 
     const transactions = await getTransactions();
     for (const tx of transactions) {
-        const amount = Math.abs(tx.record?.amount?.value ?? 0);
+        const amount = Math.abs(tx.record?.amount ?? 0);
         if (tx.type === 'DEPOSIT' || tx.type === 'TRANSFER' || tx.type === 'CREDIT') {
             for (const p of participants) {
                 if (tx[p]) balances[p] += amount * tx[p];
             }
         } else if (tx.type === 'DEBIT') {
-            const calc = calcSplit(tx);
-            if (calc) {
+            const total = participants.reduce((sum, p) => sum + (tx[p] ?? 0), 0);
+            if (total > 0) {
                 for (const p of participants) {
-                    balances[p] -= calc.split[p] ?? 0;
+                    balances[p] -= (amount / total) * (tx[p] ?? 0);
                 }
             }
         }

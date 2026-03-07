@@ -8,7 +8,7 @@ export function calcSplit(transaction) {
     };
     const total = Object.values(participants).reduce((sum, v) => sum + v, 0);
     if (total === 0) return null;
-    const amount = Math.abs(transaction.record.amount.value);
+    const amount = transaction.record.amount;
     const split = Object.fromEntries(
         Object.entries(participants).map(([key, weight]) => [key, (amount / total) * weight])
     );
