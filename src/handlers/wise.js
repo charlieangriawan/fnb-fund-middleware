@@ -75,7 +75,7 @@ export const wiseStatementRefreshHandler = async () => {
                 date: t.date,
                 amount,
                 participants,
-                ...(split !== undefined && { split }),
+                ...(split !== undefined && { split, merchant: t.details?.merchant?.name, cardLastFourDigits: t.details?.cardLastFourDigits }),
             },
             ...personCols,
         };
@@ -106,7 +106,7 @@ export const wiseStatementRefreshHandler = async () => {
             : {};
         return {
             ...merged,
-            record: { date: record.date, amount, participants, split },
+            record: { date: record.date, amount, participants, split, merchant: record.details?.merchant?.name, cardLastFourDigits: record.details?.cardLastFourDigits },
         };
     });
     await saveInjections([...depositItems, ...paymentItems]);
