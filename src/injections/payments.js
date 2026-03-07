@@ -194,5 +194,54 @@ export default [
             }
         },
         type: "DEBIT"
+    },
+    {
+        referenceNumber: "CARD-2000000005",
+        date: "2026-03-07T16:00:00.000000Z",
+        record: {
+            date: "2026-03-07T16:00:00.000000Z",
+            totalFees: {
+                zero: false,
+                value: 0.01,
+                currency: "SGD"
+            },
+            amount: {
+                zero: false,
+                value: -204,
+                currency: "SGD"
+            },
+            attachment: null,
+            referenceNumber: "CARD-2000000005",
+            activityAssetAttributions: [],
+            details: {
+                amount: {
+                    zero: false,
+                    value: 204,
+                    currency: "SGD"
+                },
+                cardLastFourDigits: "4700",
+                description: "Card transaction of 204.00 SGD issued by YeYak Korean Restaurant",
+                merchant: {
+                    country: null,
+                    city: null,
+                    name: "YeYak Korean Restaurant",
+                    postCode: null,
+                    state: null,
+                    category: "Eating Places And Restaurants",
+                    firstLine: null
+                },
+                type: "CARD",
+                category: "Eating Places And Restaurants",
+                cardHolderFullName: null
+            },
+            exchangeDetails: null,
+            type: "DEBIT",
+            runningBalance: {
+                zero: true,
+                value: 0,
+                currency: "SGD"
+            }
+        },
+        type: "DEBIT"
     }
 ];

@@ -150,5 +150,43 @@ export default [
         },
         type: "DEPOSIT",
         person: "LINA"
+    },
+    {
+        referenceNumber: "TRANSFER-1940000005",
+        date: "2026-03-07T16:00:00.000000Z",
+        record: {
+            date: "2026-03-07T16:00:00.000000Z",
+            totalFees: {
+                zero: true,
+                value: 0,
+                currency: "SGD"
+            },
+            amount: {
+                zero: false,
+                value: 204,
+                currency: "SGD"
+            },
+            attachment: null,
+            referenceNumber: "TRANSFER-1940000005",
+            activityAssetAttributions: [],
+            details: {
+                senderAccount: "Unknown bank account",
+                senderName: "LINA",
+                recipientAccountNumber: "",
+                paymentReference: "YeYak Korean Restaurant",
+                description: "Received money from LINA with reference YeYak Korean Restaurant",
+                recipientAccountDetailsId: null,
+                type: "DEPOSIT"
+            },
+            exchangeDetails: null,
+            type: "CREDIT",
+            runningBalance: {
+                zero: false,
+                value: 1093,
+                currency: "SGD"
+            }
+        },
+        type: "DEPOSIT",
+        person: "LINA"
     }
 ];
