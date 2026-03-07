@@ -131,7 +131,7 @@ export const wiseTransactionHandler = async (event) => {
         return reply(400, { error: 'Transaction is not a DEBIT' });
     }
 
-    return reply(200, { transaction: transaction.record });
+    return reply(200, { transaction: { ...transaction.record, referenceNumber } });
 };
 
 export const wiseTransactionUpdateHandler = async (event) => {
@@ -168,14 +168,14 @@ export const wiseTransactionUpdateHandler = async (event) => {
 
     const transaction = await getTransaction(referenceNumber);
 
-    return reply(200, { success: true, transaction: transaction.record });
+    return reply(200, { success: true, transaction: { ...transaction.record, referenceNumber } });
 };
 
 export const wiseStatementHandler = async (event) => {
     const { type, startDate = '2026-01-31T16:00:00.000000Z', endDate } = event.queryStringParameters ?? {};
     const items = await getTransactions({ type, startDate, endDate });
 
-    return reply(200, items.map((item) => item.record));
+    return reply(200, items.map((item) => ({ ...item.record, referenceNumber: item.referenceNumber })));
 };
 
 export const wiseBalanceHandler = async () => {
