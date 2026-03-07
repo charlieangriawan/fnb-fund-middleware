@@ -2,24 +2,14 @@ import { saveTransactions, saveInjections, resolvePersonColumns, getLatestTransa
 import { calcSplit } from '#src/utils/balance.js';
 import deposits from '#src/injections/deposits.js';
 import payments from '#src/injections/payments.js';
-
-const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-};
+import { reply } from '#src/utils/response.js';
 
 export const wiseWebhookHandler = async (event) => {
     wiseStatementRefreshHandler();
 
     console.info(event.body);
 
-    return {
-        statusCode: 200,
-        headers: corsHeaders,
-        body: JSON.stringify({
-            success: true,
-        }),
-    };
+    return reply(200, { success: true });
 };
 
 export const wiseStatementRefreshHandler = async () => {
@@ -76,81 +66,46 @@ export const wiseStatementRefreshHandler = async () => {
     const paymentItems = payments.map((p) => ({ jacky: 1, lina: 1, charlie: 1, hendro: 1, ...p }));
     await saveInjections([...depositItems, ...paymentItems]);
 
-    return {
-        statusCode: 200,
-        headers: corsHeaders,
-        body: JSON.stringify({ records: transactions.length }),
-    };
+    return reply(200, { records: transactions.length });
 };
 
 export const wiseTransactionHandler = async (event) => {
     const { referenceNumber } = event.queryStringParameters ?? {};
 
     if (!referenceNumber) {
-        return {
-            statusCode: 400,
-            headers: corsHeaders,
-            body: JSON.stringify({ error: 'referenceNumber is required' }),
-        };
+        return reply(400, { error: 'referenceNumber is required' });
     }
 
     const transaction = await getTransaction(referenceNumber);
 
     if (!transaction) {
-        return {
-            statusCode: 404,
-            headers: corsHeaders,
-            body: JSON.stringify({ error: 'Transaction not found' }),
-        };
+        return reply(404, { error: 'Transaction not found' });
     }
 
     if (transaction.type !== 'DEBIT') {
-        return {
-            statusCode: 400,
-            headers: corsHeaders,
-            body: JSON.stringify({ error: 'Transaction is not a DEBIT' }),
-        };
+        return reply(400, { error: 'Transaction is not a DEBIT' });
     }
 
     const calc = calcSplit(transaction);
 
-    return {
-        statusCode: 200,
-        headers: corsHeaders,
-        body: JSON.stringify({
-            ...(calc !== null && calc),
-            transaction,
-        }),
-    };
+    return reply(200, { ...(calc !== null && calc), transaction });
 };
 
 export const wiseTransactionUpdateHandler = async (event) => {
     const { referenceNumber, jacky, lina, charlie, hendro } = JSON.parse(event.body ?? '{}');
 
     if (!referenceNumber) {
-        return {
-            statusCode: 400,
-            headers: corsHeaders,
-            body: JSON.stringify({ error: 'referenceNumber is required' }),
-        };
+        return reply(400, { error: 'referenceNumber is required' });
     }
 
     const existing = await getTransaction(referenceNumber);
 
     if (!existing) {
-        return {
-            statusCode: 404,
-            headers: corsHeaders,
-            body: JSON.stringify({ error: 'Transaction not found' }),
-        };
+        return reply(404, { error: 'Transaction not found' });
     }
 
     if (existing.type !== 'DEBIT') {
-        return {
-            statusCode: 400,
-            headers: corsHeaders,
-            body: JSON.stringify({ error: 'Transaction is not a DEBIT' }),
-        };
+        return reply(400, { error: 'Transaction is not a DEBIT' });
     }
 
     await updateStatement({ referenceNumber, jacky, lina, charlie, hendro });
@@ -159,22 +114,14 @@ export const wiseTransactionUpdateHandler = async (event) => {
 
     const calc = calcSplit(transaction);
 
-    return {
-        statusCode: 200,
-        headers: corsHeaders,
-        body: JSON.stringify({ success: true, ...(calc !== null && calc) }),
-    };
+    return reply(200, { success: true, ...(calc !== null && calc) });
 };
 
 export const wiseStatementHandler = async (event) => {
     const { type, startDate, endDate } = event.queryStringParameters ?? {};
     const items = await getTransactions({ type, startDate, endDate });
 
-    return {
-        statusCode: 200,
-        headers: corsHeaders,
-        body: JSON.stringify(items),
-    };
+    return reply(200, items);
 };
 
 export const wiseBalanceHandler = async () => {
@@ -217,13 +164,9 @@ export const wiseBalanceHandler = async () => {
         Object.entries(balances).map(([p, v]) => [p, Math.round(v * 100) / 100])
     );
 
-    return {
-        statusCode: response.status,
-        headers: corsHeaders,
-        body: JSON.stringify({
-            currency: data.amount.currency,
-            amount: data.amount.value,
-            balances: roundedBalances,
-        }),
-    };
+    return reply(response.status, {
+        currency: data.amount.currency,
+        amount: data.amount.value,
+        balances: roundedBalances,
+    });
 };
