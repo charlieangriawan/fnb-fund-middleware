@@ -197,7 +197,7 @@ export const wiseBalanceHandler = async () => {
     const participants = ['jacky', 'lina', 'charlie', 'hendro'];
     const balances = Object.fromEntries(participants.map((p) => [p, 0]));
 
-    const transactions = await getTransactions();
+    const transactions = await getTransactions({ startDate: '2026-01-31T16:00:00.000000Z' });
     for (const tx of transactions) {
         const amount = Math.abs(tx.record?.amount ?? 0);
         if (tx.type === 'DEPOSIT' || tx.type === 'TRANSFER' || tx.type === 'CREDIT') {
