@@ -1,8 +1,12 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, BatchWriteCommand, GetCommand, PutCommand, QueryCommand, ScanCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 const client = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(client);
+const s3Client = new S3Client({});
+const S3_BUCKET = 'fnb-fund';
 
 /**
  * Derives the stored `type` from a transaction:
@@ -201,6 +205,53 @@ export async function saveInjections(items) {
             } catch (err) {
                 if (err.name !== 'ConditionalCheckFailedException') throw err;
             }
+        }),
+    );
+}
+
+export async function uploadToS3(key, body, contentType) {
+    await s3Client.send(new PutObjectCommand({
+        Bucket: S3_BUCKET,
+        Key: key,
+        Body: body,
+        ContentType: contentType,
+    }));
+}
+
+export async function generateDownloadUrl(key) {
+    const command = new GetObjectCommand({
+        Bucket: S3_BUCKET,
+        Key: key,
+    });
+    return getSignedUrl(s3Client, command, { expiresIn: 3600 });
+}
+
+export async function deleteFromS3(key) {
+    await s3Client.send(new DeleteObjectCommand({ Bucket: S3_BUCKET, Key: key }));
+}
+
+export async function addImageKey(referenceNumber, key) {
+    const tableName = process.env.WISE_TRANSACTIONS_TABLE;
+    await docClient.send(
+        new UpdateCommand({
+            TableName: tableName,
+            Key: { referenceNumber },
+            UpdateExpression: 'SET #imageKeys = list_append(if_not_exists(#imageKeys, :empty), :newKey)',
+            ExpressionAttributeNames: { '#imageKeys': 'imageKeys' },
+            ExpressionAttributeValues: { ':newKey': [key], ':empty': [] },
+        }),
+    );
+}
+
+export async function setImageKeys(referenceNumber, keys) {
+    const tableName = process.env.WISE_TRANSACTIONS_TABLE;
+    await docClient.send(
+        new UpdateCommand({
+            TableName: tableName,
+            Key: { referenceNumber },
+            UpdateExpression: 'SET #imageKeys = :keys',
+            ExpressionAttributeNames: { '#imageKeys': 'imageKeys' },
+            ExpressionAttributeValues: { ':keys': keys },
         }),
     );
 }

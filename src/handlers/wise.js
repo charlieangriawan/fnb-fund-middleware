@@ -1,4 +1,4 @@
-import { saveTransactions, saveInjections, resolveType, resolvePerson, resolvePersonColumns, getLatestTransactionDate, getTransaction, getTransactions, updateStatement } from '#src/utils/wise.js';
+import { saveTransactions, saveInjections, resolveType, resolvePerson, resolvePersonColumns, getLatestTransactionDate, getTransaction, getTransactions, updateStatement, uploadToS3, generateDownloadUrl, deleteFromS3, addImageKey, setImageKeys } from '#src/utils/wise.js';
 import deposits from '#src/injections/deposits.js';
 import payments from '#src/injections/payments.js';
 import { reply } from '#src/utils/response.js';
@@ -131,7 +131,10 @@ export const wiseTransactionHandler = async (event) => {
         return reply(400, { error: 'Transaction is not a DEBIT' });
     }
 
-    return reply(200, { transaction: { ...transaction.record, referenceNumber } });
+    const imageKeys = transaction.imageKeys ?? [];
+    const images = await Promise.all(imageKeys.map(key => generateDownloadUrl(key)));
+
+    return reply(200, { transaction: { ...transaction.record, referenceNumber, images, imageKeys } });
 };
 
 export const wiseTransactionUpdateHandler = async (event) => {
@@ -175,7 +178,16 @@ export const wiseStatementHandler = async (event) => {
     const { type, startDate = '2026-01-31T16:00:00.000000Z', endDate } = event.queryStringParameters ?? {};
     const items = await getTransactions({ type, startDate, endDate });
 
-    return reply(200, items.map((item) => ({ ...item.record, referenceNumber: item.referenceNumber })));
+    const mappedItems = await Promise.all(items.map(async (item) => {
+        const imageKeys = item.imageKeys ?? [];
+        let imageUrl = null;
+        if (imageKeys.length > 0) {
+            imageUrl = await generateDownloadUrl(imageKeys[0]);
+        }
+        return { ...item.record, referenceNumber: item.referenceNumber, imageUrl };
+    }));
+
+    return reply(200, mappedItems);
 };
 
 export const wiseBalanceHandler = async () => {
@@ -223,4 +235,52 @@ export const wiseBalanceHandler = async () => {
         amount: data.amount.value,
         balances: roundedBalances,
     });
+};
+
+export const wiseImageUploadHandler = async (event) => {
+    const { referenceNumber, image, contentType } = JSON.parse(event.body ?? '{}');
+
+    if (!referenceNumber || !image) {
+        return reply(400, { error: 'referenceNumber and image are required' });
+    }
+
+    const existing = await getTransaction(referenceNumber);
+    if (!existing) {
+        return reply(404, { error: 'Transaction not found' });
+    }
+
+    const currentKeys = existing.imageKeys ?? [];
+    if (currentKeys.length >= 3) {
+        return reply(400, { error: 'Maximum 3 images allowed' });
+    }
+
+    const key = `${referenceNumber}/image-file-${Date.now()}`;
+    const buffer = Buffer.from(image, 'base64');
+    await uploadToS3(key, buffer, contentType ?? 'image/jpeg');
+    await addImageKey(referenceNumber, key);
+
+    return reply(200, { key });
+};
+
+export const wiseImageDeleteHandler = async (event) => {
+    const { referenceNumber, key } = JSON.parse(event.body ?? '{}');
+
+    if (!referenceNumber || !key) {
+        return reply(400, { error: 'referenceNumber and key are required' });
+    }
+
+    if (!key.startsWith(`${referenceNumber}/`)) {
+        return reply(400, { error: 'Invalid image key' });
+    }
+
+    const existing = await getTransaction(referenceNumber);
+    if (!existing) {
+        return reply(404, { error: 'Transaction not found' });
+    }
+
+    const newKeys = (existing.imageKeys ?? []).filter(k => k !== key);
+    await setImageKeys(referenceNumber, newKeys);
+    await deleteFromS3(key);
+
+    return reply(200, { success: true });
 };

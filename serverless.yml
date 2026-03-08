@@ -18,6 +18,12 @@ provider:
             - lambda:*
             - dynamodb:*
           Resource: '*'
+        - Effect: Allow
+          Action:
+            - s3:PutObject
+            - s3:GetObject
+            - s3:DeleteObject
+          Resource: 'arn:aws:s3:::fnb-fund/*'
   httpApi:
     cors:
       allowedOrigins: '*'
@@ -89,6 +95,22 @@ functions:
       - http:
           path: wise/transaction
           method: patch
+          cors: true
+
+  wiseImageUpload:
+    handler: src/handlers/wise.wiseImageUploadHandler
+    events:
+      - http:
+          path: wise/transaction/images
+          method: post
+          cors: true
+
+  wiseImageDelete:
+    handler: src/handlers/wise.wiseImageDeleteHandler
+    events:
+      - http:
+          path: wise/transaction/images
+          method: delete
           cors: true
 
 plugins:
