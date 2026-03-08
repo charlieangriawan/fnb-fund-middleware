@@ -89,6 +89,7 @@ functions:
       - http:
           path: wise/transaction
           method: patch
+          cors: true
 
 plugins:
   - serverless-offline
